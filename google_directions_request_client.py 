@@ -1,0 +1,70 @@
+import requests
+
+import calendar
+import logging
+import math
+from datetime import datetime
+from pytz import timezone
+
+class GoogleDirectionsRequestClient:
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    def __init__(self):
+        pass
+
+    def getRoutesFromGoogleDirections(self, context, destination, time, currentLocation):
+        api_endpoint_base = "https://maps.googleapis.com/maps/api/directions/json?"
+        # Insert access token
+        api_access_token = ""
+
+        origin = currentLocation
+        mode = "transit"
+        time_response = self.determineTime(context)
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
+
+        #TODO needs am.pm parameters
+        time_response = str(time_response.replace(hour=int(time[:2]),minute=int(time[-2:])).timestamp())
+        arrival_time = int(math.floor(float(time_response)))
+        # defining a params dict for the parameters to be sent to the API
+        PARAMS = {'origin':origin, 'destination': destination, 'mode': mode, 'arrival_time': arrival_time, 'key': api_access_token}
+
+        try:
+            r = requests.get( api_endpoint_base, params=PARAMS)
+            res = r.json()
+            end_address = res["routes"][0]["legs"][0]["end_address"]
+            arrival_time = res["routes"][0]["legs"][0]["arrival_time"]["text"]
+            departure_time = res["routes"][0]["legs"][0]["departure_time"]["text"]
+            steps=res["routes"][0]["legs"][0]["steps"]
+            for step in steps:
+                if "transit_details" in step.keys():
+                    bus=step["transit_details"]["line"]["short_name"]
+                    departure_stop = step["transit_details"]["departure_stop"]["name"]
+                    break
+            speak_output = "To arrive at {end_address} by {arrival_time} you should leave by {departure_time}, taking Bus {bus} at {departure_stop}.".format(end_address=end_address,arrival_time=arrival_time,departure_time=departure_time,bus=bus,departure_stop=departure_stop)
+        except Exception:
+            pass
+        return speak_output
+
+    def determineTime(self, context):
+        # get device id
+        device_id = context.system.device.device_id
+
+        # get Alexa Settings API information
+        api_endpoint = context.system.api_endpoint
+        api_access_token = context.system.api_access_token
+
+         # construct systems api timezone url
+        url = '{api_endpoint}/v2/devices/{device_id}/settings/System.timeZone'.format(api_endpoint=api_endpoint, device_id=device_id)
+        headers = {'Authorization': 'Bearer ' + api_access_token}
+        userTimeZone = ""
+        try:
+            r = requests.get(url, headers=headers)
+            res = r.json()
+            userTimeZone = res
+        except Exception:
+            pass
+
+        now_time = datetime.now(timezone(userTimeZone))
+        return now_time

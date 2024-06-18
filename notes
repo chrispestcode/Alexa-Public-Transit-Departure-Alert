@@ -1,0 +1,280 @@
+open arrive by time
+
+ i want to arrive at five five five california street by nine o’clock pm
+
+i want to arrive at five five five california street by nine o'clock p.m.
+
+i want to arrive at five five five california street by nine o'clock a.m.
+
+
+
+Notes on Alexa App:
+
+Goal for this app:
+
+The Alexa App allows you to input your location, destination, and arrival time to say what time you should leave to get to where you want to be. It should facilitate travel by public transportation, which uses a schedule.
+
+Assumptions: Transportation is by transit.
+Uncertainty: Does it account for subways? Is it reliable for other cities’ public transportation systems?
+
+2/6/20 2:53PM:
+Deprecated to take in current location rather than get location of device. Future release will have a device location option.
+    def getAddress(self, context):
+        # get device id
+        device_id = context.system.device.device_id
+
+        # get Alexa Settings API information
+        api_endpoint = context.system.api_endpoint
+        api_access_token = context.system.api_access_token
+
+         # construct systems api timezone url
+        url = '{api_endpoint}/v2/devices/{device_id}/settings/address'.format(api_endpoint=api_endpoint, device_id=device_id)
+        headers = {'Authorization': 'Bearer ' + api_access_token}
+        userAddress = ""
+        try:
+            r = requests.get(url, headers=headers)
+            res = r.json()
+            userAddress = res
+        except Exception:
+            pass
+
+        return userAddress
+
+
+
+Removed code:
+        # location given here
+        #origin = "1368 E 28th Street Oakland CA"
+	#other base variables here
+
+
+        #logger.info(str(dir(time_response)))
+        #logger.info("Before :" + str(time_response))
+	#time reponse here
+
+        #logger.info(time_response)
+	#arrival_time math below
+
+	#above params set
+        #timestamp = datetime.utcfromtimestamp(time_response.timestamp())
+        #logger.info(str(timestamp))
+
+Starting goals for this project:
+Have an Alexa routine that tells me what time I should leave every morning to arrive at my destination.
+
+Future releases:
+More transit options. Support place ids/names, not just physical address (may have a problem with same name locations (i.e. chain locations)).
+
+Fixes:
+Fixes need to be made for null or incorrect values and am/pm time adjustments. Error handling for response.
+	a. NONISSUE “nine” current time is 3:35PM (TYPED)
+
+
+Manual Validation:
+1.  1200 Lakeshore Avenue :
+    1. NONISSUE: “Twelve zero zero lakeshore ave” translates to “ 12 00 lakeshore ave” (TYPED).
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by nine o'clock p.m.
+        4. A: Where are you leaving from ?
+        5. S: twelve zero zero lakeshore avenue
+        6. A: … take bus 62 from macarthur
+        7. * NOTE: This may be plausible. “Thirteen sixty eight” needs to be distinguishable from another valid address “thirteen sixty eighTH street”. User should be more verbally accurate.
+    2. EXPECTED: “one two zero zero” (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by nine o'clock p.m.
+        4. A: Where are you leaving from ?
+        5. S: one two zero zero lakeshore avenue
+        6. A: To arrive at 555 California St, San Francisco, CA 94104, USA by 8:50pm you should leave by 8:20pm, taking Bus Blue-Wkd/Sat at Lake Merritt.
+        7. * NOTE: The app rounds to the earliest possible arrival time by transit, so 8:50pm instead of 9:00pm.
+    3. EXPECTED: “twelve hundred” (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by nine o'clock p.m.
+        4. A: Where are you leaving from ?
+        5. S: twelve hundred lakeshore avenue
+        6. A: To arrive at 555 California St, San Francisco, CA 94104, USA by 8:50pm you should leave by 8:20pm, taking Bus Blue-Wkd/Sat at Lake Merritt.
+        7. * NOTE: The app rounds to the earliest possible arrival time by transit, so 8:50pm instead of 9:00pm.
+2. Nonsense addresses :
+    1. EXPECTED: “Nine nine” - traveling to (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at nine nine by nine o'clock p.m.
+        4. A: Where are you leaving from ?
+        5. S: twelve hundred lakeshore avenue
+        6. A: Sorry, I had trouble doing what you asked. Please try again.
+        7. * NOTE: Better error reporting system but later. Google Maps Web extrapolates to an address/location that relates to input.
+    2. EXPECTED: “location” - traveling to (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at location by nine o'clock p.m.
+        4. A: Where are you leaving from ?
+        5. S: twelve hundred lakeshore avenue
+        6. A: Sorry, I had trouble doing what you asked. Please try again.
+    3. EXPECTED: “united states”  traveling to (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at united states by nine o'clock p.m.
+        4. A: Where are you leaving from ?
+        5. S: twelve hundred lakeshore avenue
+        6. A: Sorry, I had trouble doing what you asked. Please try again.
+    4. EXPECTED: “united states of america”  traveling to (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at united states of america by nine o'clock p.m.
+        4. A: Where are you leaving from ?
+        5. S: twelve hundred lakeshore avenue
+        6. A: Sorry, I had trouble doing what you asked. Please try again.
+3. Nonsense time:
+    1. ISSUE: “Word” (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by word
+        4. A: What time would you like to arrive?
+        5. S: word
+        6. A: What time would you like to arrive?
+        7. S: word
+        8. * NOTE: No response
+        9. * DEBUG LOG: ...”shouldEndSession": false…
+    2. NONISSUE “Seven seven” (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by seven seven
+        4. A: Where are you traveling from?
+        5. S: twelve hundred lakeshore avenue
+        6. A: To arrive at 555 California St, San Francisco, CA 94104, USA by 7:06am you should leave by 6:36am, taking Bus Blue-Wkd/Sat at Lake Merritt.
+        7. * NOTE : response seems valid since numbers were still entered.
+4. AM vs PM cases:
+    1. NONISSUE “nine” current time is 3:35PM (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by nine
+        4. A: Where are you traveling from?
+        5. S: twelve hundred lakeshore avenue
+        6. A: To arrive at 555 California St, San Francisco, CA 94104, USA by 8:59am you should leave by 8:29am, taking Bus Green at Lake Merritt.
+        7. *NOTE: It did not round to the nearest applicable hour. It used 9:00 am vs 9:00 pm.
+    2. EXPECTED “nine pm” current time is 3:35PM (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by nine pm
+        4. A: Where are you traveling from?
+        5. S: twelve hundred lakeshore avenue
+        6. A: To arrive at 555 California St, San Francisco, CA 94104, USA by 8:50pm you should leave by 8:20pm, taking Bus Blue-Wkd/Sat at Lake Merritt.
+    3. EXPECTED “nine thirty seven pm” current time is 3:35PM (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by nine  thirty seven pm
+        4. A: Where are you traveling from?
+        5. S: twelve hundred lakeshore avenue
+        6. A: To arrive at 555 California St, San Francisco, CA 94104, USA by 9:35pm you should leave by 9:05pm, taking Bus Blue-Wkd/Sat at Lake Merritt.
+    4. EXPECTED “nine thirty seven at night” current time is 3:35PM (TYPED)
+        1. S: open arrive by time
+        2. A: Welcome to Arrive by time alert. Where would you like to go?
+        3. S: I want to arrive at five five five california street by nine  thirty seven at night
+        4. A: Where are you traveling from?
+        5. S: twelve hundred lakeshore avenue
+        6. A: To arrive at 555 California St, San Francisco, CA 94104, USA by 9:35pm you should leave by 9:05pm, taking Bus Blue-Wkd/Sat at Lake Merritt.
+        7. * NOTE: Alexa handles colloquial phrases for time of day
+User testing (By Voice):
+
+Test 1: I want to arrive at [address] from [origin] . A: No response
+
+Test 2: I want to make it to [address] and I’m leaving from [origin]. — “no content” not processed
+
+Test 3: I want to make it to [address] in [city] and I’m leaving from [origin] in [city]. — “no content” not processed
+
+Test 4: open arrive by time
+
+	Welcome to Arrive by time alert. Where would you like to go?
+	i would like to go to a hundred and fourth avenue in oakland california
+
+	I may want to arrive at 1234 Second St by 9:30 am. Where are you traveling to?
+	i want to arrive at hundred and fourth avenue by five p.m.
+
+	Where are you traveling from?
+	fifty one hundred broadway
+
+	Sorry, I had trouble doing what you asked. Please try again.
+Test 5:
+
+	i wanna go to a hundred and fourth avenue by five p.m.
+	Where are you traveling from?
+	yes what is a of coming from seventy third avenue
+	Sorry, I had trouble doing what you asked. Please try again.
+Test 6: open arrive by time
+
+	Welcome to Arrive by time alert. Where would you like to go?
+	i wanna go to a hundred and four thousand and by five p.m.
+
+	Where are you traveling from?
+	fifty one hundred dollars
+
+	Sorry, I had trouble doing what you asked. Please try again.
+Test 7: open arrive by time
+
+	Welcome to Arrive by time alert. Where would you like to go?
+	i want to go to burd street by five p. m.
+
+	Where are you traveling from?
+	i'm traveling from seventeen thirty uhhh
+	Sorry, I had trouble doing what you asked. Please try again.
+Test 8 : open arrive by time
+
+	Welcome to Arrive by time alert. Where would you like to go?
+	i want to go to burj street by five p.m.
+
+	Where are you traveling from?
+	i'm traveling from seventy third ass
+
+	Sorry, I had trouble doing what you asked. Please try again.
+Test 9 (street number needed?): open arrive by time
+
+	Welcome to Arrive by time alert. Where would you like to go?
+	i want to go to burj street by five p.m.
+
+	Where are you traveling from?
+	i'm traveling from seventy third ass
+
+	Sorry, I had trouble doing what you asked. Please try again.
+	i want to go to birch street by five p.m.
+
+	Where are you traveling from?
+	i'm traveling from seventy third ave
+
+	There was a problem with the requested skill's response
+DEBUG LOG for Test 9 ([removed] by me): { "version": "1.0", "session": { "new": false, "sessionId": [removed] "application": { "applicationId": [removed] }, "user": { "userId": [removed] } }, "context": { "System": { "application": { "applicationId": [removed] }, "user": { "userId": [removed] }, "device": { "deviceId": [removed] "supportedInterfaces": {} }, "apiEndpoint": "https://api.amazonalexa.com", "apiAccessToken": [removed] }, "Viewport": { "experiences": [ { "arcMinuteWidth": 246, "arcMinuteHeight": 144, "canRotate": false, "canResize": false } ], "shape": "RECTANGLE", "pixelWidth": 1024, "pixelHeight": 600, "dpi": 160, "currentPixelWidth": 1024, "currentPixelHeight": 600, "touch": [ "SINGLE" ], "video": { "codecs": [ "H_264_42", "H_264_41" ] } }, "Viewports": [ { "type": "APL", "id": "main", "shape": "RECTANGLE", "dpi": 160, "presentationType": "STANDARD", "canRotate": false, "configuration": { "current": { "video": { "codecs": [ "H_264_42", "H_264_41" ] }, "size": { "type": "DISCRETE", "pixelWidth": 1024, "pixelHeight": 600 } } } } ] }, "request": { "type": "IntentRequest", "requestId": [removed] "timestamp": "2020-02-07T00:09:56Z", "locale": "en-US", "intent": { "name": "CaptureTravelDetailsIntent", "confirmationStatus": "NONE", "slots": { "destination": { "name": "destination", "value": "birch street", "confirmationStatus": "NONE", "source": "USER" }, "time": { "name": "time", "value": "17:00", "confirmationStatus": "NONE", "source": "USER" }, "currentLocation": { "name": "currentLocation", "value": "73rd ave", "confirmationStatus": "NONE", "source": "USER" } } }, "dialogState": "COMPLETED" } }
+
+Test 10 (New York corner case, where the street number and name is one long number): open arrive by time
+
+Welcome to Arrive by time alert. Where would you like to go? i want to go to two thirty california street by five p.m.
+
+Where are you traveling from? i'm traveling from one eight five one a hundred and fourth avenue <—— ISSUE: Input is valid but not processed correctly
+
+Sorry, I had trouble doing what you asked. Please try again.
+
+Test 11 : issue may deal with shortened street suffixes (avenue -> ave)
+
+	open arrive by time
+
+	Welcome to Arrive by time alert. Where would you like to go?
+	i wanna go to two thirty california street by five p.m.
+
+	Where are you traveling from?
+	yes i'm traveling from twelve hundred lake shore app
+
+	There was a problem with the requested skill's response
+Test 12:
+
+	open arrive by time
+
+	Welcome to Arrive by time alert. Where would you like to go?
+	i wanna go to two three zero california street by five p.m.
+
+	Where are you traveling from?
+	i'm traveling from one to zero zero lake shore avenue
+
+	To arrive at 230 California St, San Francisco, CA 94111, USA by 4:56pm you should leave by 7:57am, taking Bus 704 at Sunset / Echo Park.
+
+
+	* NOTE : Google Maps Web guesses address, but not api. The response is valid but the origin location “two =/= to”
